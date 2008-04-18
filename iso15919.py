@@ -26,7 +26,7 @@ SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.'''
 
 __author__ = "Mublin <mublin@dealloc.org>"
 __date__ = "16 April 2008"
-__version__ = "0.1.5"
+__version__ = "0.1.6"
 
 class TransliterationError(Exception):
     pass
@@ -283,17 +283,21 @@ def transliterate(source):
         # special transliteration for consonant cluster?
         if char in clusterables:
             try:
-                if source[i+1] == VIRAMA:
-                    offset = 3
-                elif source[i+1] == NUKTA:
-                    offset = 2
-                else:
-                    raise KeyError
-                result.append(clusters[source[i:i+offset]])
-                i += offset
-                continue
-            except KeyError:
+                next = source[i+1]
+            except IndexError:
                 pass
+            else:
+                try:
+                    if next == VIRAMA:
+                        result.append(clusters[source[i:i+3]])
+                        i += 3
+                        continue
+                    elif next == NUKTA:
+                        result.append(clusters[source[i:i+2]])
+                        i += 2
+                        continue
+                except KeyError:
+                    pass
 
         # vowel + nukta?
         if i and char == NUKTA:
