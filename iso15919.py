@@ -26,9 +26,7 @@ SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.'''
 
 __author__ = "Mublin <mublin@dealloc.org>"
 __date__ = "16 April 2008"
-__version__ = "0.1.4"
-
-from itertools import chain
+__version__ = "0.1.5"
 
 class TransliterationError(Exception):
     pass
@@ -90,7 +88,7 @@ table = u'''\
 \u090e	
 \u090f	e
 \u0910	ai
-\u0911	
+\u0911	\u00f4
 \u0912	
 \u0913	o
 \u0914	au
@@ -114,7 +112,7 @@ table = u'''\
 \u0926	da
 \u0927	dha
 \u0928	na
-\u0929	
+\u0929	n\u0331a
 \u092a	pa
 \u092b	pha
 \u092c	ba
@@ -122,10 +120,10 @@ table = u'''\
 \u092e	ma
 \u092f	ya
 \u0930	ra
-\u0931	
+\u0931	r\u0331a
 \u0932	la
 \u0933	
-\u0934	
+\u0934	l\u0331a
 \u0935	va
 \u0936	\u015ba
 \u0937	\u1e63a
@@ -140,7 +138,7 @@ table = u'''\
 \u0942	\u016b
 \u0943	\u1e5b
 \u0944	\u1e5d
-\u0945	
+\u0945	\u00ea
 \u0946	
 \u0947	e
 \u0948	ai
@@ -155,7 +153,7 @@ table = u'''\
 \u0953	
 \u0954	
 \u0958	qa
-\u0959	k\u0331h\u0331
+\u0959	k\u0331h\u0331a
 \u095a	\u0121
 \u095b	za
 \u095c	\u1e5ba
@@ -187,13 +185,24 @@ table = u'''\
 \u097e	
 \u097f	'''
 
+# These are special transliterations for consonant triples which have
+# a virama in the centre, as well as for some consonant-nukta pairs
+# which are not equivalent to a single Unicode character.
 clusters = u'''\
+\u0939\u093c	h\u0324a
+\u0938\u093c	s\u0324a
+\u0924\u093c	t\u0324a
 \u0915\u094d\u0937	k\u1e63a
 \u091c\u094d\u091e	j\xf1a
 \u0924\u094d\u0930	tra
 \u0936\u094d\u0930	\u015bra'''
 
-additional_consonants = u'''\
+# These are combinations of consonant and nukta which are equivalent
+# to a single Unicode character.
+nukta_consonants = u'''\
+\u0929	\u0928\u093c
+\u0931	\u0930\u093c
+\u0934	\u0933\u093c
 \u0958	\u0915\u093c
 \u0959	\u0916\u093c
 \u095a	\u0917\u093c
@@ -204,15 +213,15 @@ additional_consonants = u'''\
 \u095f	\u092f\u093c'''
 
 table = [row.split('\t') for row in table.split('\n')]
-clusters = [row.split('\t') for row in clusters.split('\n')]
-clusterables = dict.fromkeys(char[0] for char, _ in clusters)
-additional_consonants = dict(row.split('\t') for row in additional_consonants.split('\n'))
+clusters = dict(row.split('\t') for row in clusters.split('\n'))
+clusterables = dict.fromkeys(cluster[0] for cluster in clusters)
+nukta_consonants = dict(row.split('\t') for row in nukta_consonants.split('\n'))
 
 iso15919 = {}
-for char, trans in chain(table, clusters):
+for char, trans in table:
     if trans:
         iso15919[char] = trans
-
+        
 def transliterate(source):
     '''Transliterate Devanagari to the Latin alphabet (ISO 15919).
 
@@ -244,8 +253,8 @@ def transliterate(source):
     # normalisation: replace consonant + nukta by equivalent
     # consonants
     orig = source
-    for char, cluster in additional_consonants.iteritems():
-        source = source.replace(cluster, char)
+    for char, combination in nukta_consonants.iteritems():
+        source = source.replace(combination, char)
 
     # transliterate character by character
     result, i = [], 0
@@ -273,21 +282,41 @@ def transliterate(source):
 
         # special transliteration for consonant cluster?
         if char in clusterables:
-            cluster = source[i:i+3]
             try:
-                result.append(iso15919[cluster])
-                i += 3
+                if source[i+1] == VIRAMA:
+                    offset = 3
+                elif source[i+1] == NUKTA:
+                    offset = 2
+                else:
+                    raise KeyError
+                result.append(clusters[source[i:i+offset]])
+                i += offset
                 continue
             except KeyError:
                 pass
+
+        # vowel + nukta?
+        if i and char == NUKTA:
+            prev = source[i-1]
+            if VOWEL_START <= prev <= VOWEL_END \
+                    or VOWEL2_START <= prev <= VOWEL2_END \
+                    or VOWEL3 == prev \
+                    or MATRA_START <= prev <= MATRA_END \
+                    or MATRA2_START <= prev <= MATRA2_END:
+                result.append(u'\u2018')
+                i += 1
+                continue
 
         # default.
         try:
             result.append(iso15919[char])
         except KeyError:
             if DEVANAGARI_START <= char <= DEVANAGARI_END:
+                start, end = i - 3, i + 3
+                if start < 0:
+                    start, end = 0, end - start
                 raise TransliterationError, \
-                    'no transliteration for Devanagari %r' % char
+                    'no transliteration for Devanagari %r (%r)' % (char, source[start:end])
             result.append(char)
 
         i += 1
