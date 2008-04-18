@@ -26,7 +26,7 @@ SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.'''
 
 __author__ = "Mublin <mublin@dealloc.org>"
 __date__ = "16 April 2008"
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 from itertools import chain
 
@@ -293,3 +293,9 @@ def transliterate(source):
         i += 1
 
     return ''.join(result)
+
+if __name__ == '__main__':
+    import sys
+    for line in sys.stdin:
+        print transliterate(line)
+
