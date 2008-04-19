@@ -25,8 +25,8 @@ AND THERE IS NO OBLIGATION WHATSOEVER TO PROVIDE MAINTENANCE,
 SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.'''
 
 __author__ = "Mublin <mublin@dealloc.org>"
-__date__ = "16 April 2008"
-__version__ = "0.1.6"
+__date__ = "19 April 2008"
+__version__ = "0.1.7"
 
 class TransliterationError(Exception):
     pass
@@ -71,7 +71,7 @@ CONSONANT4_START   = u'\u097e'
 CONSONANT4_END     = u'\u097f'
 DEVANAGARI_END     = u'\u097f'
 
-table = u'''\
+iso15919 = u'''\
 \u0901	m\u0310
 \u0902	\u1e41
 \u0903	\u1e25
@@ -84,13 +84,13 @@ table = u'''\
 \u090a	\u016b
 \u090b	\u1e5b
 \u090c	\u1e37
-\u090d	
-\u090e	
-\u090f	e
+\u090d	\u00ea
+\u090e	e
+\u090f	\u0113
 \u0910	ai
 \u0911	\u00f4
-\u0912	
-\u0913	o
+\u0912	o
+\u0913	\u014d
 \u0914	au
 \u0915	ka
 \u0916	kha
@@ -122,7 +122,7 @@ table = u'''\
 \u0930	ra
 \u0931	r\u0331a
 \u0932	la
-\u0933	
+\u0933	\u1e37a
 \u0934	l\u0331a
 \u0935	va
 \u0936	\u015ba
@@ -139,12 +139,12 @@ table = u'''\
 \u0943	\u1e5b
 \u0944	\u1e5d
 \u0945	\u00ea
-\u0946	
-\u0947	e
+\u0946	e
+\u0947	\u0113
 \u0948	ai
 \u0949	\u00f4
-\u094a	
-\u094b	o
+\u094a	o
+\u094b	\u014d
 \u094c	au
 \u094d	
 \u0950	o\u1e43
@@ -166,16 +166,16 @@ table = u'''\
 \u0963	\u1e39
 \u0964	.
 \u0965	..
-\u0966	
-\u0967	
-\u0968	
-\u0969	
-\u096a	
-\u096b	
-\u096c	
-\u096d	
-\u096e	
-\u096f	
+\u0966	0
+\u0967	1
+\u0968	2
+\u0969	3
+\u096a	4
+\u096b	5
+\u096c	6
+\u096d	7
+\u096e	8
+\u096f	9
 \u0970	\u2026
 \u0971	
 \u0972	
@@ -212,15 +212,27 @@ nukta_consonants = u'''\
 \u095e	\u092b\u093c
 \u095f	\u092f\u093c'''
 
-table = [row.split('\t') for row in table.split('\n')]
+# This table specifies the transliteration of anusvara where followed
+# by a consonant.
+anusvara_consonants = u'''\
+n	\u0915 \u0915 \u0917 \u0918 \u0919 \u0924 \u0925 \u0926 \u0927 \u0928
+\u00f1	\u091a \u091b \u091c \u091d \u091e
+\u1e47	\u091f \u0920 \u0921 \u0922 \u0923
+m	\u092a \u092b \u092c \u092d \u092e'''
+
+iso15919 = [row.split('\t') for row in iso15919.split('\n')]
+iso15919, _iso15919 = {}, iso15919
+for char, trans in _iso15919:
+    if trans:
+        iso15919[char] = trans
 clusters = dict(row.split('\t') for row in clusters.split('\n'))
 clusterables = dict.fromkeys(cluster[0] for cluster in clusters)
 nukta_consonants = dict(row.split('\t') for row in nukta_consonants.split('\n'))
-
-iso15919 = {}
-for char, trans in table:
-    if trans:
-        iso15919[char] = trans
+anusvara_consonants, _anusvara_consonants = {}, anusvara_consonants
+for row in _anusvara_consonants.split('\n'):
+    char, consonants = row.split('\t')
+    for consonant in consonants.split(' '):
+        anusvara_consonants[consonant] = char
         
 def transliterate(source):
     '''Transliterate Devanagari to the Latin alphabet (ISO 15919).
@@ -235,13 +247,10 @@ def transliterate(source):
     - simplified nasalization option: anusvara is transliterated U+1E41
       and candrabindu mU+0310.
 
-    - non-uniform vowel option: The vowels e and o will not be marked
-      long, as usual for scripts not having short e and o.
-
     TODO:
 
-    - implement strict options
-    - provide transliterations for rare characters
+    - U+0904 = short a: transliteration?
+    - FIXIT nasalisation of inherent vowel!
     - check danda and double danda transliteration
 
     SOURCES: 
@@ -260,6 +269,28 @@ def transliterate(source):
     result, i = [], 0
     while i < len(source):
         char = source[i]
+
+        # anusvara + consonant?
+        if char == ANUSVARA:
+            try:
+                next = source[i+1]
+                result.append(anusvara_consonants[next])
+                i += 1
+                continue
+            except (IndexError, KeyError):
+                pass
+
+        # vowel + anusvara/candrabindu?
+        if i and char in (ANUSVARA, CANDRABINDU):
+            prev = source[i-1]
+            if VOWEL_START <= prev <= VOWEL_END \
+                    or VOWEL2_START <= prev <= VOWEL2_END \
+                    or VOWEL3 == prev \
+                    or MATRA_START <= prev <= MATRA_END \
+                    or MATRA2_START <= prev <= MATRA2_END:
+                result.append(u'\u0303')
+                i += 1
+                continue
 
         # consonant + virama or matra?
         if i and (char == VIRAMA or
@@ -329,6 +360,12 @@ def transliterate(source):
 
 if __name__ == '__main__':
     import sys
+    status = 0
     for line in sys.stdin:
-        sys.stdout.write(
-            transliterate(line.decode('utf-8')).encode('utf-8'))
+        try:
+            sys.stdout.write(
+                transliterate(line.decode('utf-8')).encode('utf-8'))
+        except TransliterationError, e:
+            sys.stderr.write(e.message + '\n')
+            status = 1
+    sys.exit(status)
