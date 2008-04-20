@@ -22,11 +22,24 @@ THE AUTHOR SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT
 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
 PARTICULAR PURPOSE.  THE CODE PROVIDED HEREUNDER IS ON AN "AS IS" BASIS,
 AND THERE IS NO OBLIGATION WHATSOEVER TO PROVIDE MAINTENANCE,
-SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.'''
+SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+
+
+TODO
+
+    * U+0904 = short a: transliteration?
+    * nasalisation of inherent vowel?
+    * check danda and double danda transliteration
+
+Sources.
+
+    * http://www.unicode.org/charts/PDF/U0900.pdf
+    * http://transliteration.eki.ee/pdf/Hindi-Marathi-Nepali.pdf
+    * http://homepage.ntlworld.com/stone-catend/triunico.htm'''
 
 __author__ = "Mublin <mublin@dealloc.org>"
-__date__ = "19 April 2008"
-__version__ = "0.1.7"
+__date__ = "20 April 2008"
+__version__ = "0.1.8"
 
 class TransliterationError(Exception):
     pass
@@ -242,22 +255,7 @@ def transliterate(source):
     If a unicode character from the Devanagari range cannot be
     transliterated, a TransliterationError is raised. If another
     unicode character cannot be transliterated, it is copied unchanged
-    to the result string.
-
-    - simplified nasalization option: anusvara is transliterated U+1E41
-      and candrabindu mU+0310.
-
-    TODO:
-
-    - U+0904 = short a: transliteration?
-    - FIXIT nasalisation of inherent vowel!
-    - check danda and double danda transliteration
-
-    SOURCES: 
-
-    - http://www.unicode.org/charts/PDF/U0900.pdf
-    - http://transliteration.eki.ee/pdf/Hindi-Marathi-Nepali.pdf
-    - http://homepage.ntlworld.com/stone-catend/triunico.htm'''
+    to the result string.'''
 
     # normalisation: replace consonant + nukta by equivalent
     # consonants
